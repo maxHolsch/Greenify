@@ -1,3 +1,4 @@
+#please make sure to install streamlit and openai to run
 import streamlit as st
 import openai
 from openai import OpenAI
