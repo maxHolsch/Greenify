@@ -1,0 +1,55 @@
+import os
+import csv
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import Chroma
+from langchain.chat_models import ChatOpenAI
+from langchain.chains import ConversationalRetrievalChain
+from langchain.schema import Document
+from langchain_community.embeddings.openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_community.chat_models import ChatOpenAI
+
+# Set up OpenAI API key
+os.environ["OPENAI_API_KEY"] = "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"
+
+# Load the CSV file
+csv_file = "products.csv"
+products = []
+
+with open(csv_file, "r") as file:
+    csv_reader = csv.DictReader(file)
+    for row in csv_reader:
+        products.append(row)
+
+# Set up the embedding and vectorstore
+embeddings = OpenAIEmbeddings()
+documents = [Document(page_content=str(product)) for product in products]
+vectorstore = Chroma.from_documents(
+    documents=documents,
+    embedding=embeddings,
+    persist_directory="product_vectorstore"
+)
+
+# Set up the language model and retrieval chain
+llm = ChatOpenAI(model_name="gpt-3.5-turbo")
+retrieval_chain = ConversationalRetrievalChain.from_llm(
+    llm=llm,
+    retriever=vectorstore.as_retriever(),
+    return_source_documents=True
+)
+
+# Chat with the CSV data
+while True:
+    query = input("User: ")
+    if query.lower() == "exit":
+        break
+
+    result = retrieval_chain({"question": query})
+    relevant_products = result["source_documents"][:5]
+
+    print("Assistant: Here are the top 5 relevant products:")
+    for i, product in enumerate(relevant_products, start=1):
+        product_info = eval(product.page_content)
+        print(f"{i}. {product_info['name']} - {product_info['description']}")
+
+    print()
